@@ -5,10 +5,10 @@
   "type": "module",
   "license": "MIT",
   "author": "cortico-world-camera contributors",
-  "repository": { "type": "git", "url": "git+https://github.com/vvn6d4zg82-byte/cortico-world-camera.git" },
-  "homepage": "https://github.com/vvn6d4zg82-byte/cortico-world-camera#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/zhzaill/cortico-world-camera.git" },
+  "homepage": "https://github.com/zhzaill/cortico-world-camera#readme",
   "engines": { "node": ">=22" },
-  "files": ["dist", "src", "tools", "README.md", "LICENSE", "package.json"],
+  "files": ["dist", "src", "tools", "docs", "README.md", "LICENSE", "package.json"],
   "keywords": ["cortico-world", "cortico", "camera", "webcam", "vision", "yolo", "pose"],
   "cortico": {
     "kind": "world",
