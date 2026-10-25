@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>眼睛 · 面板预览</title>
+    <!--
+      离线预览：不装 Cortico 也能看这个面板长什么样。
+      跑法（本目录）：python -m http.server 8181
+      然后打开 http://127.0.0.1:8181/tools/panel-preview.html
+      它用一个桩 ConsolePanelContext 假装自己是控制台，摄像头是真的，数据是造的。
+    -->
+    <link rel="stylesheet" href="../src/console/style.css" />
+    <link rel="stylesheet" href="preview-chrome.css" />
+  </head>
+  <body>
+    <main id="root"></main>
+    <script type="module">
+      import bundle from '../dist/console.js';
+
+      const h = (tag, cls, text) => {
+        const el = document.createElement(tag);
+        if (cls) el.className = cls;
+        if (text != null) el.textContent = String(text);
+        return el;
+      };
+
+      const sheet = ({ title, en, desc }) => {
+        const el = h('section', 'sheet');
+        const head = h('div', 'sheet-head');
+        const h3 = h('h3', null, title);
+        if (en) h3.append(h('span', 'en', en));
+        head.append(h3);
+        const body = h('div', 'sheet-body');
+        if (desc) body.append(h('p', 'sh-desc', desc));
+        el.append(head, body);
+        return { el, body, note: h('div'), desc: null };
+      };
+
+      const ui = {
+        h,
+        esc: (s) => String(s),
+        sheet,
+        foldSheet: (id, opts) => sheet(opts),
+        rowbar: () => h('div', 'rowbar'),
+        section: (t, d) => {
+          const el = h('div', 'section');
+          el.append(h('div', 'section-title', t));
+          if (d) el.append(h('div', 'section-desc', d));
+          return el;
+        },
+        actions: () => h('div', 'actions'),
+        button: (label, opts = {}) => {
+          const b = h('button', `btn ${opts.size === 'sm' ? 'sm' : ''} ${opts.variant === 'primary' ? 'primary' : ''} ${opts.variant === 'danger' ? 'danger' : ''}`.trim(), label);
+          b.type = 'button';
+          if (opts.onClick) b.addEventListener('click', opts.onClick);
+          return b;
+        },
+        copyButton: (text) => ui.button('复制'),
+        pill: (text, tone) => h('span', `pill ${tone ?? ''}`.trim(), text),
+        chip: (text, tone) => h('span', `chip ${tone ?? ''}`.trim(), text),
+        msgline: (text, bad) => h('div', `msgline ${bad ? 'bad' : ''}`.trim(), text ?? ''),
+        placeholder: (text) => h('div', 'placeholder', text),
+        input: (o = {}) => {
+          const i = h('input', `field ${o.cls ?? ''}`.trim());
+          i.type = o.type ?? 'text';
+          if (o.value) i.value = o.value;
+          if (o.placeholder) i.placeholder = o.placeholder;
+          return i;
+        },
+        select: (o = {}) => {
+          const s = h('select', `field ${o.cls ?? ''}`.trim());
+          for (const item of o.options ?? []) {
+            const value = typeof item === 'string' ? item : item.value;
+            const label = typeof item === 'string' ? item : item.label ?? item.value;
+            const opt = h('option', null, label);
+            opt.value = value;
+            s.append(opt);
+          }
+          if (o.onChange) s.addEventListener('change', () => o.onChange(s.value));
+          return s;
+        },
+        textarea: (o = {}) => h('textarea', `field ${o.cls ?? ''}`.trim()),
+        promptInput: () => ({ el: h('div', 'prompt'), focus() {}, setDisabled() {}, setPlaceholder() {}, restore() {} }),
+        checkbox: (label, o = {}) => {
+          const el = h('label', 'check');
+          const input = h('input');
+          input.type = 'checkbox';
+          input.checked = Boolean(o.checked);
+          el.append(input, document.createTextNode(label));
+          return { el, input, get checked() { return input.checked; }, setChecked(v) { input.checked = v; } };
+        },
+        field: (label, control) => {
+          const el = h('label', 'fieldwrap');
+          el.append(h('span', 'fieldlabel', label), control);
+          return el;
+        },
+        segmented: (items, o = {}) => {
+          const el = h('div', 'segwrap');
+          const buttons = items.map((item) => {
+            const value = typeof item === 'string' ? item : item.value;
+            const b = ui.button(typeof item === 'string' ? item : item.label ?? item.value, { size: 'sm' });
+            b.addEventListener('click', () => { if (o.onSelect) o.onSelect(value); });
+            el.append(b);
+            return b;
+          });
+          return { el, get value() { return ''; }, setValue() {} };
+        },
+        table: (o = {}) => {
+          const el = h('div', 'tablewrap');
+          const table = h('table');
+          if (o.head) {
+            const tr = h('tr');
+            for (const cell of o.head) tr.append(h('th', null, cell));
+            table.append(h('thead'));
+            table.querySelector('thead').append(tr);
+          }
+          const body = h('tbody');
+          table.append(body);
+          el.append(table);
+          return { el, body, addRow(cells) { const tr = h('tr'); for (const c of cells) tr.append(h('td', null, c)); body.append(tr); return tr; }, clear() { body.replaceChildren(); } };
+        },
+        kv: (rows) => {
+          const table = h('table', 'kv');
+          for (const row of rows) {
+            const tr = h('tr');
+            tr.append(h('td', 'k', row.k), h('td', 'v', row.v));
+            table.append(tr);
+          }
+          return table;
+        },
+        log: (o = {}) => {
+          const el = h('div', 'logview');
+          let count = 0;
+          const append = (line, tone) => {
+            const row = h('div', `logline ${tone ?? ''}`.trim(), line);
+            el.append(row);
+            count += 1;
+            if (o.max && count > o.max) el.firstElementChild?.remove();
+            el.scrollTop = el.scrollHeight;
+            return row;
+          };
+          if (o.empty) append(o.empty, 'dim');
+          return { el, append, clear() { el.replaceChildren(); count = 0; }, get count() { return count; }, get stuck() { return true; }, scrollToEnd() { el.scrollTop = el.scrollHeight; } };
+        },
+        stat: (s) => {
+          const el = h('div', `stat ${s.accent ? 'accent' : ''}`.trim());
+          el.append(h('div', 'k', s.k), h('div', 'v', s.v));
+          return el;
+        },
+        statgrid: (items = []) => {
+          const el = h('div', 'statgrid');
+          for (const item of items) el.append(ui.stat(item));
+          return el;
+        },
+        progress: (o = {}) => {
+          const el = h('div', 'progress');
+          return { el, value: o.value ?? 0, max: o.max ?? 1, setValue() {}, setLabel() {} };
+        },
+        toast: (text, tone) => {
+          const el = h('div', `toast ${tone ?? ''}`.trim(), text);
+          document.body.append(el);
+          setTimeout(() => el.remove(), 2400);
+          return { dispose: () => el.remove() };
+        },
+        confirm: async () => true,
+        drawer: (title, body) => {
+          const el = h('div', 'drawer');
+          el.append(h('div', 'drawer-title', title), typeof body === 'string' ? h('pre', 'mono', body) : body);
+          document.body.append(el);
+          return { dispose: () => el.remove() };
+        },
+        lightbox: (src, alt) => {
+          const el = h('div', 'lightbox');
+          const img = h('img');
+          img.src = src;
+          img.alt = alt ?? '';
+          el.append(img);
+          el.addEventListener('click', () => el.remove());
+          document.body.append(el);
+          return { dispose: () => el.remove() };
+        },
+        busy: (title) => ({ dispose() {} }),
+        disable: () => ({ dispose() {} }),
+        fmt: {
+          count: (n) => String(n ?? 0),
+          bytes: (n) => `${n ?? 0} B`,
+          percent: (r) => `${Math.round((r ?? 0) * 100)}%`,
+          clock: (ts) => new Date(ts).toLocaleTimeString('zh-CN', { hour12: false }),
+          money: (n) => String(n ?? 0),
+          duration: (ms) => `${((ms ?? 0) / 1000).toFixed(1)}s`,
+        },
+      };
+
+      // ── 桩宿主：造一份像真的状态，摄像头是真的 ──────────────
+      const root = document.getElementById('root');
+      const controller = new AbortController();
+      const disposables = [];
+      let viewer = null;
+
+      const fakeState = (over = {}) => ({
+        t: 'state',
+        at: Date.now(),
+        frames: 128,
+        frameAgeMs: 90,
+        analysisFps: 2,
+        mirror: true,
+        camera: { hasFrame: true, width: 1280, height: 720, luma: 118, motion: 0.04, frameAt: Date.now() - 90, stalled: false },
+        detector: {
+          configured: true,
+          online: true,
+          error: null,
+          count: 1,
+          at: Date.now(),
+          detections: [{ label: 'person', score: 0.82, bbox: [0.16, 0.18, 0.52, 0.92] }],
+        },
+        vla: {
+          configured: true,
+          online: true,
+          error: null,
+          analyzedAt: Date.now(),
+          analyzedCount: 41,
+          analyzing: false,
+          proposal: { waypoint: [0.94, -0.15], v: 0.08, w: -0.4, dist: 12.4, latencyMs: 216, at: Date.now() - 240 },
+        },
+        scene: [
+          '【眼睛】22:31:08 的画面（90 毫秒前，新鲜）',
+          '画面 1280×720，亮度正常；画面基本静止（运动能量 0.04）。',
+          '检测器说：person×1。person（画面左，置信 0.82）。它只给框，远近看不出。',
+          '提案（影子，不驱动）：前方偏右 9°、约 0.9 米；0.08 米/秒、右转 0.40 弧度/秒；离目标 12.4 米（它自己的读数）；240 毫秒前算的，它自称耗时 216 毫秒。',
+          '看不到：身后 180°、身体两侧、以及被挡住的东西——相机只有一只眼睛，这是结构性的盲。',
+        ].join('\n'),
+        viewers: 1,
+        ...over,
+      });
+
+      const ctx = {
+        pageId: 'world:camera',
+        panelId: 'eye',
+        language: 'zh-CN',
+        root,
+        signal: controller.signal,
+        scope: {},
+        async invoke(method) {
+          if (method === 'state') return fakeState();
+          if (method === 'publish') return { text: '已经把这一眼交给她了' };
+          if (method === 'forget') return { text: '内存里的画面已清空' };
+          return {};
+        },
+        async invokeBinary() {
+          return new Blob([], { type: 'image/jpeg' });
+        },
+        pickPath: async () => null,
+        setConfig: async () => 'ok',
+        stream(handlers) {
+          viewer = handlers;
+          handlers.open?.();
+          const timer = setInterval(() => handlers.message(JSON.stringify(fakeState())), 1000);
+          const handle = {
+            open: true,
+            send() {},
+            dispose() { clearInterval(timer); },
+          };
+          disposables.push(handle);
+          return handle;
+        },
+        interval: (fn, ms) => { const t = setInterval(fn, ms); const d = { dispose: () => clearInterval(t) }; disposables.push(d); return d; },
+        timeout: (fn, ms) => { const t = setTimeout(fn, ms); const d = { dispose: () => clearTimeout(t) }; disposables.push(d); return d; },
+        frame: (fn) => { let stop = false; const loop = (t) => { if (stop) return; fn(t); requestAnimationFrame(loop); }; requestAnimationFrame(loop); const d = { dispose: () => { stop = true; } }; disposables.push(d); return d; },
+        own: (d) => { disposables.push(d); return d; },
+        memo: {
+          get: (key, fallback) => {
+            try {
+              const raw = localStorage.getItem(`preview:${key}`);
+              return raw === null ? fallback : JSON.parse(raw);
+            } catch {
+              return fallback;
+            }
+          },
+          set: (key, value) => {
+            try { localStorage.setItem(`preview:${key}`, JSON.stringify(value)); } catch { /* ignore */ }
+          },
+        },
+        guardLeave: () => ({ dispose() {} }),
+        async mountSlot() { return { dispose() {} }; },
+        ui,
+        async refresh() {},
+      };
+
+      const panel = bundle.panels.eye;
+      await panel.mount(ctx);
+      // 预览里替操作者点一次「开眼」：无头浏览器带着假摄像头进来，能看到完整的舞台。
+      setTimeout(() => {
+        const open = document.querySelector('.cam-bar .btn.primary');
+        if (open instanceof HTMLButtonElement && !document.querySelector('.cam-video')?.srcObject) open.click();
+      }, 500);
+      // 每秒把 5 个状态帧滚过去，让读数、时钟与事件看起来是活的。
+      setInterval(() => {
+        viewer?.message(JSON.stringify(fakeState({ frames: 128 + Math.floor(Math.random() * 40) })));
+      }, 1000);
+      window.addEventListener('beforeunload', () => {
+        controller.abort();
+        for (const d of disposables) d.dispose?.();
+      });
+    </script>
+  </body>
+</html>

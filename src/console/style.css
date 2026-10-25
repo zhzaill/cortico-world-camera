@@ -1,0 +1,249 @@
+/* 眼睛 · 控制台面板。只用控制台自己的设计令牌，跟随部署主题；视频区自带暗底。 */
+
+.cam-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: #0a0f0d;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 4%, transparent), 0 8px 28px var(--shadow-soft);
+}
+
+.cam-video,
+.cam-boxes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cam-video {
+  object-fit: cover;
+  filter: saturate(1.04) contrast(1.02);
+}
+
+.cam-boxes {
+  pointer-events: none;
+}
+
+/* 镜像只改显示：送到 World 的像素永远是相机原始朝向，检测框与它同向翻转。 */
+.cam-stage[data-mirror="1"] .cam-video,
+.cam-stage[data-mirror="1"] .cam-boxes {
+  transform: scaleX(-1);
+}
+
+.cam-stage::after {
+  /* 细扫描线：让画面像"在观测"，而不是像聊天框里的一张图 */
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+}
+
+.cam-offline {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  color: color-mix(in srgb, #fff 68%, transparent);
+  font: 500 12px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: radial-gradient(circle at 50% 45%, #14211c 0, #0a0f0d 70%);
+}
+
+/* 叠加件永远在「离线遮罩」之上：没有画面时，读数与提案仍要说得出为什么。 */
+.cam-chrome,
+.cam-inset,
+.cam-strip {
+  z-index: 2;
+}
+
+.cam-chrome {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  color: color-mix(in srgb, #fff 82%, transparent);
+  font: 600 11px var(--mono);
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 2px #000a;
+}
+
+.cam-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, #fff 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 32%, transparent);
+}
+
+.cam-rec[data-live="0"] {
+  color: color-mix(in srgb, #fff 45%, transparent);
+  border-color: color-mix(in srgb, #fff 10%, transparent);
+}
+
+.cam-rec[data-live="1"] {
+  animation: cam-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes cam-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, #59d8a8 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, #59d8a8 0%, transparent); }
+}
+
+.cam-clock,
+.cam-fps {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 32%, transparent);
+}
+
+.cam-inset {
+  position: absolute;
+  right: 10px;
+  bottom: 44px;
+  width: 168px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, #fff 16%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, #06110c 72%, transparent);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.cam-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.cam-inset-label {
+  display: block;
+  padding-top: 3px;
+  color: color-mix(in srgb, #cfe9dc 88%, transparent);
+  font: 500 10px var(--mono);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cam-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 12px;
+  color: #e6f4ec;
+  font: 500 11px var(--mono);
+  background: linear-gradient(to top, color-mix(in srgb, #04100a 92%, transparent), transparent);
+}
+
+.cam-strip b {
+  color: #7ef0bc;
+  letter-spacing: 0.1em;
+}
+
+.cam-strip span {
+  white-space: nowrap;
+}
+
+.cam-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 8px;
+}
+
+.cam-device {
+  min-width: 190px;
+  max-width: 280px;
+}
+
+.cam-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.cam-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--sheet);
+}
+
+.cam-chip-k {
+  color: var(--ink-dim);
+  font: 600 10px var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cam-chip-v {
+  color: var(--ink);
+  font: 600 14px var(--mono);
+}
+
+.cam-chip[data-tone="ok"] .cam-chip-v { color: var(--ok); }
+.cam-chip[data-tone="warn"] .cam-chip-v { color: var(--warn); }
+.cam-chip[data-tone="bad"] .cam-chip-v { color: var(--danger); }
+
+.cam-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: 10px;
+}
+
+.cam-card {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--sheet);
+}
+
+.cam-card-k {
+  margin-bottom: 6px;
+  color: var(--ink-dim);
+  font: 600 10px var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cam-prose {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 400 12.5px/1.68 var(--sans);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 860px) {
+  .cam-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cam-cols { grid-template-columns: minmax(0, 1fr); }
+  .cam-inset { width: 132px; bottom: 40px; }
+}

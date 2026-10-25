@@ -1,0 +1,35 @@
+{
+  "name": "cortico-world-camera",
+  "version": "0.2.0",
+  "description": "Cortico 的一只眼睛：摄像头画面 + YOLO 检测 + 姿态骨架 + 人脸 + 提案，全部先转译成一句人话再交给 Persona。",
+  "type": "module",
+  "license": "MIT",
+  "author": "cortico-world-camera contributors",
+  "repository": { "type": "git", "url": "git+https://github.com/vvn6d4zg82-byte/cortico-world-camera.git" },
+  "homepage": "https://github.com/vvn6d4zg82-byte/cortico-world-camera#readme",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "src", "tools", "README.md", "LICENSE", "package.json"],
+  "keywords": ["cortico-world", "cortico", "camera", "webcam", "vision", "yolo", "pose"],
+  "cortico": {
+    "kind": "world",
+    "api": 5,
+    "displayName": "眼睛",
+    "consoleClient": "dist/console.js",
+    "consoleStyle": "dist/console.css"
+  },
+  "main": "src/definition.ts",
+  "exports": {
+    ".": "./src/definition.ts",
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "cortico": "file:../../vendor/cortico",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "build:console": "node ../../scripts/build-console.mjs cortico-world-camera",
+    "check": "node ../../scripts/check-extension.mjs packages/cortico-world-camera",
+    "sidecar": "python tools/perception_sidecar.py --port 9402",
+    "demo": "node ../../node_modules/tsx/dist/cli.mjs tools/demo-translate.ts"
+  }
+}
